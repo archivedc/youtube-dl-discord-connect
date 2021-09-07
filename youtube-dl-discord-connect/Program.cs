@@ -40,8 +40,13 @@ namespace youtube_dl_discord_connect
             }
             else
             {
-                Console.WriteLine("No Config");
-                return;
+                Console.WriteLine("Using System Environment");
+                BotToken = Environment.GetEnvironmentVariable("BOTTOKEN");
+                if (!ulong.TryParse(Environment.GetEnvironmentVariable("CHANNEL"), out TargetChannel))
+                {
+                    Console.WriteLine("Failed to load from System Environment");
+                    return;
+                }
             }
 
             new Program().MainAsync().GetAwaiter().GetResult();
@@ -141,7 +146,7 @@ namespace youtube_dl_discord_connect
             (int, string) exitcode;
             await RefreshStatusAsync("Downloading Video");
 
-            var outputfile = string.Join("", url.Select(v => InvalidFilenameChars.Contains(v) ? '_' : v));
+            var outputfile = Path.Combine("output", string.Join("", url.Select(v => InvalidFilenameChars.Contains(v) ? '_' : v)));
 
             exitcode = DownloadVideo(url, outputfile);
             if (exitcode.Item1 != 0)
