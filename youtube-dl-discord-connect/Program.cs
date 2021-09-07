@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,8 @@ namespace youtube_dl_discord_connect
 
         private static string BotToken;
         private static ulong TargetChannel;
+
+        private System.Timers.Timer QueueTimer;
 
         static void Main(string[] args)
         {
@@ -67,17 +70,47 @@ namespace youtube_dl_discord_connect
             return Task.CompletedTask;
         }
 
+        private ISocketMessageChannel replyChannel;
+
         private async Task ReadyAsync()
         {
             Console.WriteLine($"{_client.CurrentUser} is connected!");
 
+            replyChannel = (ISocketMessageChannel)_client.GetChannel(TargetChannel);
+
             await RefreshStatusAsync();
+
+            QueueTimer = new System.Timers.Timer(5000)
+            {
+                AutoReset = true,
+                Enabled = true
+            };
+            QueueTimer.Elapsed += QueueTimer_Elapsed;
+        }
+
+        private void QueueTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            if (Downloading)
+                return;
+
+            if (DownloadQueue.Count < 1) return;
+
+            Task.Run(() =>
+            {
+                Downloading = true;
+                QueueDownload(DownloadQueue.Dequeue(), replyChannel);
+                Downloading = false;
+                RefreshStatusAsync().Wait();
+            });
         }
 
         private async Task RefreshStatusAsync(string currentjob = null)
         {
+            int left = DownloadQueue.Count;
+            if (Downloading) left++;
+
             string job = currentjob != null ? $"({currentjob})" : "";
-            await _client.SetGameAsync($"Queue: {CurrentQueuedCount} {job}");
+            await _client.SetGameAsync($"Queue: {left} {job}");
         }
 
         private async Task MessageReceivedAsync(SocketMessage message)
@@ -88,16 +121,20 @@ namespace youtube_dl_discord_connect
             if (message.Channel.Id != TargetChannel)
                 return;
 
-            await message.AddReactionAsync(new Emoji("\U0001F197"));
+            string url = UrlFormatter.FormatUrl(message.Content);
+            if (url == null)
+            {
+                await message.AddReactionAsync(new Emoji("\U0001F196" /* 🆖 */));
+                return;
+            }
 
-            CurrentQueuedCount++;
+            await message.AddReactionAsync(new Emoji("\U0001F197" /* 🆗 */));
+
+            DownloadQueue.Enqueue(url);
             await RefreshStatusAsync();
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Run(() => QueueDownload(message.Content, message.Channel));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
 
-        private int CurrentQueuedCount = 0;
+        private Queue<string> DownloadQueue = new Queue<string>();
 
         async void QueueDownload(string url, ISocketMessageChannel replyChannel)
         {
@@ -111,8 +148,6 @@ namespace youtube_dl_discord_connect
             {
                 await replyChannel.SendMessageAsync($"Fail!: `{url}`\n```\n{exitcode.Item2}\n```");
                 await SendLogFile(exitcode.Item2, replyChannel);
-                await RefreshStatusAsync();
-                CurrentQueuedCount--;
                 return;
             }
 
@@ -122,13 +157,9 @@ namespace youtube_dl_discord_connect
             {
                 await replyChannel.SendMessageAsync($"Success! (no Livechat): `{url}`");
                 await SendLogFile(exitcode.Item2, replyChannel);
-                await RefreshStatusAsync();
-                CurrentQueuedCount--;
                 return;
             }
 
-            CurrentQueuedCount--;
-            await RefreshStatusAsync();
             await replyChannel.SendMessageAsync($"Success!: `{url}`");
         }
 
@@ -149,6 +180,8 @@ namespace youtube_dl_discord_connect
         }
 
         private static char[] InvalidFilenameChars = Path.GetInvalidFileNameChars();
+
+        private bool Downloading = false;
 
         (int, string) DownloadLiveChat(string video, string outputfile)
         {
