@@ -20,6 +20,6 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build youtube-dl-discord-connect/youtube-dl-discord-connect.csproj --no-restore
+      run: dotnet build --no-restore
     - name: Test
-      run: dotnet test youtube-dl-discord-connect/youtube-dl-discord-connect.csproj --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal
