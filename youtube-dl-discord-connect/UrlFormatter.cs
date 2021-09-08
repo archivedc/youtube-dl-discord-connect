@@ -28,12 +28,28 @@ namespace youtube_dl_discord_connect
 
             string scheme = url.GetLeftPart(UriPartial.Scheme);
 
+            var query = System.Web.HttpUtility.ParseQueryString(url.Query);
+
             switch (url.Authority)
             {
                 case "www.youtube.com":
+                    // If not "/watch", Return error.
+                    if (url.AbsolutePath != "/watch") return null;
+
+                    // Return error if no params or no "v" params.
+                    if (!query.HasKeys() || !query.AllKeys.Contains("v")) return null;
+
+                    // If there is parameters not "v", delete that
+                    if (query.Count > 1)
+                    {
+                        url = new Uri($"https://www.youtube.com{url.AbsolutePath}?v={query.Get("v")}");
+                        goto Format;
+                    }
+
+                    // Rewrite https
                     if (scheme != "https://")
                     {
-                        url = new Uri($"https://www.youtube.com/{url.AbsolutePath}");
+                        url = new Uri($"https://www.youtube.com{url.PathAndQuery}");
                         goto Format;
                     }
                     break;
