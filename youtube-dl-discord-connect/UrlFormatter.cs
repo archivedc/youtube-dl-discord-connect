@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace youtube_dl_discord_connect
 {
-    class UrlFormatter
+    public class UrlFormatter
     {
         public static string FormatUrl(string originalurl)
         {
