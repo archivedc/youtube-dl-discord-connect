@@ -1,0 +1,7 @@
+app:
+  build: .
+  environment:
+    BOTTOKEN: DISCORD BOT TOKEN
+    CHANNEL: DISCORD CHANNEL ID
+  volumes:
+    - "./data:/app/output"
