@@ -9,6 +9,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static youtube_dl_discord_connect.Service;
+
 namespace youtube_dl_discord_connect
 {
     class Program
@@ -148,7 +150,16 @@ namespace youtube_dl_discord_connect
 
             var outputfile = Path.Combine("output", string.Join("", url.Select(v => InvalidFilenameChars.Contains(v) ? '_' : v)));
 
-            exitcode = DownloadVideo(url, outputfile);
+            var service = ServiceDetector.DetectService(url);
+
+            string opt = "-f bestvideo+bestaudio --write-sub --all-subs --write-info-json --write-thumbnail --write-annotations --write-description";
+
+            if (service == YouTube)
+            {
+                opt = "-f bestvideo[ext=webm]+bestaudio[ext=webm] --merge-output-format webm --recode-video mp4 --write-sub --all-subs --write-info-json --write-thumbnail --write-annotations --write-description";
+            }
+
+            exitcode = DownloadVideo(url, outputfile, opt);
             if (exitcode.Item1 != 0)
             {
                 await replyChannel.SendMessageAsync($"Fail!: `{url}`\n```\n{exitcode.Item2}\n```");
@@ -156,14 +167,18 @@ namespace youtube_dl_discord_connect
                 return;
             }
 
-            await RefreshStatusAsync("Downloading Livechat");
-            exitcode = DownloadLiveChat(url, outputfile);
-            if (exitcode.Item1 != 0)
+            if (service == YouTube)
             {
-                await replyChannel.SendMessageAsync($"Success! (no Livechat): `{url}`");
-                await SendLogFile(exitcode.Item2, replyChannel);
-                return;
+                await RefreshStatusAsync("Downloading Livechat");
+                exitcode = DownloadLiveChat(url, outputfile);
+                if (exitcode.Item1 != 0)
+                {
+                    await replyChannel.SendMessageAsync($"Success! (no Livechat): `{url}`");
+                    await SendLogFile(exitcode.Item2, replyChannel);
+                    return;
+                }
             }
+
 
             await replyChannel.SendMessageAsync($"Success!: `{url}`");
         }
@@ -173,10 +188,10 @@ namespace youtube_dl_discord_connect
             await channel.SendFileAsync(new MemoryStream(Encoding.UTF8.GetBytes(log)), "log.txt");
         }
 
-        (int, string) DownloadVideo(string video, string outputfile)
+        (int, string) DownloadVideo(string video, string outputfile, string option)
         {
             // https://blog.yuki0311.com/how_to_use_youtube-dl/ How to write as mp4
-            var args = $"-f bestvideo[ext=webm]+bestaudio[ext=webm] --merge-output-format webm --recode-video mp4 -o \"{outputfile}.%(ext)s\" --write-sub --all-subs --write-info-json --write-thumbnail --write-annotations --write-description {video}";
+            var args = $"{option} -o \"{outputfile}.%(ext)s\" {video}";
             Console.WriteLine($"$ youtube-dl: {args}");
             var psi = new System.Diagnostics.ProcessStartInfo("youtube-dl", args);
             psi.RedirectStandardError = true;
