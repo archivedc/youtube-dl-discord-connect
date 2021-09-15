@@ -95,5 +95,15 @@ namespace youtube_dl_discord_connect.tests
 
             Assert.True(res == want, $"{check} must be converted to {want}. Extra parameters must be ignored.");
         }
+
+        [Fact]
+        public void YoutubeDotComWithAdditionalParametersNoVideo()
+        {
+            var check = "https://www.youtube.com/watch?list=PL_Y0U3KlPL0c_GRDoMbZsWlBNEoSb10Hh";
+            string want = null;
+            var res = UrlFormatter.FormatUrl(check);
+
+            Assert.True(res == want, $"{check} must be error.");
+        }
     }
 }
