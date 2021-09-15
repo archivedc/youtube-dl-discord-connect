@@ -175,7 +175,8 @@ namespace youtube_dl_discord_connect
 
         (int, string) DownloadVideo(string video, string outputfile)
         {
-            var args = $"-f bestvideo+bestaudio --merge-output-format mp4 -o \"{outputfile}.%(ext)s\" --write-sub --all-subs --write-info-json --write-thumbnail --write-annotations --write-description {video}";
+            // https://blog.yuki0311.com/how_to_use_youtube-dl/ How to write as mp4
+            var args = $"-f bestvideo[ext=webm]+bestaudio[ext=webm] --merge-output-format webm --recode-video mp4 -o \"{outputfile}.%(ext)s\" --write-sub --all-subs --write-info-json --write-thumbnail --write-annotations --write-description {video}";
             Console.WriteLine($"$ youtube-dl: {args}");
             var psi = new System.Diagnostics.ProcessStartInfo("youtube-dl", args);
             psi.RedirectStandardError = true;
